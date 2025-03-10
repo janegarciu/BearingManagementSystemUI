@@ -17,7 +17,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var httpClient = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
 var json = await httpClient.GetStringAsync("appsettings.json");
 var config = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-var baseAddress = new Uri(Environment.GetEnvironmentVariable("ApiUrl") ?? "https://test-proj-api-1.azurewebsites.net/");
+var baseAddress = new Uri(Environment.GetEnvironmentVariable("ApiUrl") ?? config["ApiUrl"]);
 
 builder.Services.AddAuthorizationCore();
 
