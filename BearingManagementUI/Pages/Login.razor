@@ -1,0 +1,48 @@
+@page "/login"
+
+@using BearingManagementUI.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject IAccountManagement AccountManagement
+
+<PageTitle>Login</PageTitle>
+
+<h1>Login</h1>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="alert alert-success">You're logged in as @context.User.Identity?.Name.</div>
+    </Authorized>
+    <NotAuthorized>
+        <RadzenCard Style="max-width: 400px; margin: auto; padding: 20px;">
+            <RadzenLogin Login="OnLogin" />
+            
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="alert alert-danger mt-3">@_errorMessage</div>
+            }
+            
+            <div class="mt-3 text-center">
+                <a href="register">Register as a new user</a>
+            </div>
+        </RadzenCard>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string? _errorMessage;
+
+    private async Task OnLogin(LoginArgs args)
+    {
+        var isSuccessful = await AccountManagement.LoginAsync(args.Username, args.Password);
+        
+        if (isSuccessful)
+        {
+            Navigation.NavigateTo("/"); 
+        }
+        else
+        {
+            _errorMessage = "Invalid username or password. Please try again.";
+        }
+    }
+}

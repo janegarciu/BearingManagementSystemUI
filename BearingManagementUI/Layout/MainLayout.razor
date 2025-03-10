@@ -1,0 +1,49 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+
+<HeadContent>
+    <RadzenTheme Theme="software" />
+</HeadContent>
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween" Gap="10">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10">
+                <RadzenSidebarToggle Click="@(() => _drawerOpen = !_drawerOpen)"/>
+                <RadzenLabel Text="Bearing Management System"/>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="10" Style="margin-right: 10px">
+                <AuthorizeView>
+                    <Authorized>
+                        Logged in as @context.User.Identity?.Name.
+                        <RadzenIcon Icon="door_open"></RadzenIcon>
+                        <RadzenLink Path="logout" Text="Logout"></RadzenLink>
+                    </Authorized>
+                    <NotAuthorized>
+                        <RadzenIcon Icon="door_open"></RadzenIcon>
+                        <RadzenLink Path="login" Text="Login"></RadzenLink>
+                        <RadzenIcon Icon="edit_note"></RadzenIcon>
+                        <RadzenLink Path="register" Text="Register"></RadzenLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenHeader>
+    <RadzenSidebar @bind-Expanded="_drawerOpen" Style="width:300px">
+        <RadzenPanelMenu>
+            <RadzenPanelMenuItem Text="Home" Icon="home" Path="/"/>
+            <RadzenPanelMenuItem Text="Data" Icon="table_view">
+                <RadzenPanelMenuItem Text="Bearings" Icon="settings" Path="/bearings"/>
+            </RadzenPanelMenuItem>
+        </RadzenPanelMenu>
+    </RadzenSidebar>
+    <RadzenBody>
+        <div class="rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+<RadzenComponents />
+
+@code {
+    bool _drawerOpen = true;
+}

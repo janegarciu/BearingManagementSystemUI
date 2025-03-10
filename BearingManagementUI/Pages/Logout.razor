@@ -1,0 +1,30 @@
+@page "/logout"
+@using BearingManagementUI.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IAccountManagement AccountManagement
+
+<PageTitle>Logout</PageTitle>
+
+<h1>Logout</h1>
+
+<AuthorizeView @ref="authView">
+    <Authorized>
+        <div class="alert alert-info">Logging you out...</div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-success">You're logged out. <a href="/login">Log in.</a></div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private AuthorizeView? authView;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AccountManagement.GetAuthenticationStateAsync();
+        if (authState.User.Identity != null)
+        {
+            await AccountManagement.LogoutAsync();
+        }
+    }
+}

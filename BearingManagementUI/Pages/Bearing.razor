@@ -1,0 +1,138 @@
+@page "/bearing/{BearingId:int}"
+@using BearingManagementUI.Models.Api.Requests
+@using BearingManagementUI.Models.Api.Responses
+@using BearingManagementUI.Services.ApiContracts
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NotificationService NotificationService
+@inject IBearingsApi BearingsApi
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+<RadzenText Text="Bearing" TextStyle="TextStyle.DisplayH4" Class="rz-mb-5">
+</RadzenText>
+<AuthorizeView>
+    <NotAuthorized>
+        You should login before viewing this page!
+    </NotAuthorized>
+    <Authorized>
+        @if (_isLoading)
+        {
+            <RadzenProgressBarCircular Style="position: absolute; top: 50%; left: 50%;"
+                                       ProgressBarStyle="ProgressBarStyle.Primary" Value="100" ShowValue="false"
+                                       Mode="ProgressBarMode.Indeterminate"/>
+        }
+        else
+        {
+            <RadzenCard>
+            <RadzenStack Orientation="Orientation.Vertical">
+                <RadzenTemplateForm TItem="BearingResponse" Data="@_bearing" Submit="@Save">
+                    <ChildContent Context="formContext">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="20px">
+                            <RadzenFormField Text="Name">
+                                <RadzenTextBox @bind-Value="_bearing.Name" Name="Name"/>
+                                <RadzenRequiredValidator Component="Name" Text="Name is required."/>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Type">
+                                <RadzenTextBox @bind-Value="_bearing.Type" Name="Type"/>
+                                <RadzenRequiredValidator Component="Type" Text="Type is required."/>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Manufacturer">
+                                <RadzenTextBox @bind-Value="_bearing.Manufacturer" Name="Manufacturer"/>
+                                <RadzenRequiredValidator Component="Manufacturer" Text="Manufacturer is required."/>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Size">
+                                <RadzenNumeric TValue="string" @bind-Value="_bearing.Size" Format="###mm"
+                                               Style="width: 100px;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Created At">
+                                <RadzenDatePicker @bind-Value="_bearing.CreatedAt" ReadOnly="true"/>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Updated At">
+                                <RadzenDatePicker @bind-Value="_bearing.UpdatedAt" ReadOnly="true"/>
+                            </RadzenFormField>
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" class="rz-mt-5">
+                        <RadzenButton ButtonType="ButtonType.Submit" Text="Save" Icon="done" class="rz-px-7"/>
+                        </RadzenStack>
+                    </ChildContent>
+                </RadzenTemplateForm>
+            </RadzenStack>
+            </RadzenCard>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [Parameter] public int BearingId { get; set; }
+    private string _token = string.Empty;
+    private BearingResponse _bearing = new();
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState != null)
+        {
+            var authState = await AuthState;
+            _token = authState.User.Claims.FirstOrDefault(x => x.Type.Equals("Token"))?.Value ?? string.Empty;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+
+        var bearing = await BearingsApi.GetById(_token, BearingId);
+        if (bearing is { IsSuccessStatusCode: true, Content: not null })
+        {
+            _bearing = bearing.Content;
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", bearing.Error?.Message);
+        }
+
+        _isLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Save()
+    {
+        var request = new BearingRequest
+        {
+            Name = _bearing.Name,
+            Type = _bearing.Type,
+            Manufacturer = _bearing.Manufacturer,
+            Size = _bearing.Size
+        };
+        try
+        {
+            _isLoading = true;
+
+            var response = await BearingsApi.UpdateById(_token, BearingId, request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+                NotificationService.Notify(NotificationSeverity.Success, "Success", "Data saved successfully.");
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Error", response.Error?.Message);
+            }
+
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, ex.Message);
+        }
+    }
+
+}

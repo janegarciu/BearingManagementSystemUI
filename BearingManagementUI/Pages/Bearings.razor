@@ -1,0 +1,231 @@
+@page "/bearings"
+@using BearingManagementUI.Models
+@using BearingManagementUI.Models.Api.Requests
+@using BearingManagementUI.Models.Api.Responses
+@using BearingManagementUI.Services.ApiContracts
+@using Microsoft.AspNetCore.Components.Authorization
+@using Refit
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject IBearingsApi BearingsApi
+@inject NavigationManager NavigationManager
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<RadzenText Text="Bearings" TextStyle="TextStyle.DisplayH4" Class="rz-mb-5">
+    <RadzenIcon Icon="table_view"/>
+</RadzenText>
+<AuthorizeView>
+    <NotAuthorized>
+        You should login before viewing this page!
+    </NotAuthorized>
+    <Authorized>
+        <RadzenCard>
+            <RadzenStack Orientation="Orientation.Horizontal" class="rz-mb-4">
+                <RadzenButton Click="Create" Icon="add" Text="Create New Bearing" class="rz-mr-2"/>
+            </RadzenStack>
+
+            <RadzenDataGrid Data="_bearingData" TItem="BearingResponse" @ref="BearingGrid" IsLoading="@_isLoading"
+                            AllowFiltering="true" FilterMode="FilterMode.Advanced"
+                            LogicalFilterOperator="LogicalFilterOperator.Or" AllowSorting="true"
+                            AllowPaging="true" PageSize="10" PagerHorizontalAlign="HorizontalAlign.Right"
+                            ShowPagingSummary="true"
+                            class="rz-shadow-1" AllowAlternatingRows="false"
+                            RowClick="@(args => NavigationManager.NavigateTo($"/bearing/{args.Data.Id}"))">
+                <Columns>
+                    <RadzenDataGridColumn TItem="BearingResponse" Sortable="false" Filterable="false">
+                        <Template Context="item">
+                            <RadzenButton Click="() => Update(item)" ButtonStyle="ButtonStyle.Success" @onclick:stopPropagation
+                                          Variant="Variant.Flat" Icon="edit" class="rz-mr-2"/>
+                            <RadzenButton Click="() => Delete(item)" ButtonStyle="ButtonStyle.Danger" @onclick:stopPropagation
+                                          Variant="Variant.Flat"
+                                          Icon="delete"/>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="Name" Title="Name"/>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="Type" Title="Type"/>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="Manufacturer" Title="Manufacturer"/>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="Size" Title="Size">
+                        <Template Context="model">
+                            @($"{(int.TryParse(model.Size, out var size) ? size : 0)} mm")
+                        </Template>
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="CreatedAt" Title="Created At"
+                                          FormatString="{0:dd/MM/yyyy}"/>
+                    <RadzenDataGridColumn TItem="BearingResponse" Property="UpdatedAt" Title="Updated At"
+                                          FormatString="{0:dd/MM/yyyy}"/>
+
+
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private string _token = string.Empty;
+    private BearingModel _editModel = new();
+    private List<BearingResponse> _bearingData = [];
+    private RadzenDataGrid<BearingResponse>? BearingGrid { get; set; }
+    private bool _isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState != null)
+        {
+            var authState = await AuthState;
+            _token = authState.User.Claims.FirstOrDefault(x => x.Type.Equals("Token"))?.Value ?? string.Empty;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+
+        var bearings = await BearingsApi.Get(_token);
+        if (bearings is { IsSuccessStatusCode: true, Content: not null })
+        {
+            _bearingData = bearings.Content.ToList();
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", bearings.Error?.Message);
+        }
+
+        _isLoading = false;
+    }
+
+    private async Task Create()
+    {
+        _editModel = new BearingModel();
+        await ShowEdit(nameof(Create));
+    }
+
+    private async Task Update(BearingResponse response)
+    {
+        _editModel = new BearingModel
+        {
+            Id = response.Id,
+            Name = response.Name,
+            Type = response.Type,
+            Manufacturer = response.Manufacturer,
+            Size = response.Size,
+            CreatedAt = response.CreatedAt,
+            UpdatedAt = response.UpdatedAt
+        };
+        await ShowEdit(nameof(Update));
+    }
+
+    async Task ShowEdit(string editMode)
+    {
+        var title = editMode == "Create" ? "Create New Bearing" : $"Update Bearing {_editModel.Name}";
+
+        await DialogService.OpenAsync(title, content =>
+            @<RadzenStack Orientation="Orientation.Vertical">
+                <RadzenTemplateForm TItem="BearingModel" Data="@_editModel" Submit="@(() => SaveEdit(editMode))">
+                    <RadzenStack Orientation="Orientation.Vertical" Gap="20px">
+                        <RadzenFormField Text="Name">
+                            <RadzenTextBox @bind-Value="_editModel.Name" Name="Name"/>
+                            <RadzenRequiredValidator Component="Name" Text="Name is required."/>
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Type">
+                            <RadzenTextBox @bind-Value="_editModel.Type" Name="Type"/>
+                            <RadzenRequiredValidator Component="Type" Text="Type is required."/>
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Manufacturer">
+                            <RadzenTextBox @bind-Value="_editModel.Manufacturer" Name="Manufacturer"/>
+                            <RadzenRequiredValidator Component="Manufacturer" Text="Manufacturer is required."/>
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Size">
+                                <RadzenNumeric TValue="string" @bind-Value="_editModel.Size" Format="###mm"
+                                               Style="width: 100px;" />
+                        </RadzenFormField>
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" class="rz-mt-5">
+                        <RadzenButton Click="CancelEdit" ButtonStyle="ButtonStyle.Light" Text="Cancel" Icon="close"/>
+                        <RadzenButton ButtonType="ButtonType.Submit" Text="Save" Icon="done" class="rz-px-7"/>
+                    </RadzenStack>
+                </RadzenTemplateForm>
+            </RadzenStack>
+        );
+    }
+
+    private async Task Delete(BearingResponse model)
+    {
+        var result = await DialogService.Confirm(
+            "Are you sure?",
+            $"Delete bearing: {model.Name} {model.Type}",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" }
+        );
+
+        if (result == true)
+        {
+            _isLoading = true;
+            var response = await BearingsApi.DeleteById(_token, model.Id);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+                if (BearingGrid != null) await BearingGrid.Reload();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Error", response.Error?.Message);
+            }
+
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveEdit(string editMode)
+    {
+        var request = new BearingRequest
+        {
+            Name = _editModel.Name,
+            Type = _editModel.Type,
+            Manufacturer = _editModel.Manufacturer,
+            Size = _editModel.Size
+        };
+        try
+        {
+            _isLoading = true;
+            IApiResponse response;
+            if (editMode == "Create")
+            {
+                response = await BearingsApi.Create(_token, request);
+            }
+            else
+            {
+                response = await BearingsApi.UpdateById(_token, _editModel.Id, request);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadData();
+                if (BearingGrid != null) await BearingGrid.Reload();
+                NotificationService.Notify(NotificationSeverity.Success, "Success", "Data saved successfully.");
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Error", response.Error?.Message);
+            }
+
+            _isLoading = false;
+            DialogService.Close();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, ex.Message);
+        }
+    }
+
+    private void CancelEdit()
+    {
+        DialogService.Close();
+    }
+
+}

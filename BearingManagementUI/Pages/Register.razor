@@ -1,0 +1,66 @@
+@page "/register"
+
+@using System.ComponentModel.DataAnnotations
+@using BearingManagementUI.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IAccountManagement AccountManagement
+
+<PageTitle>Register</PageTitle>
+<AuthorizeView>
+    <Authorized>
+        <RadzenAlert Style="max-width: 400px; margin: auto;" AlertStyle="AlertStyle.Success">
+            You're already logged in as @context.User.Identity?.Name.
+        </RadzenAlert>
+    </Authorized>
+    <NotAuthorized>
+        @if (_result)
+        {
+            <RadzenAlert Style="max-width: 400px; margin: auto;" AlertStyle="AlertStyle.Success">
+                You successfully registered. Now you can
+                <RadzenLink Path="login" Text="login"/>
+                .
+            </RadzenAlert>
+        }
+        else
+        {
+            <RadzenCard Style="max-width: 400px; margin: auto; padding: 20px;">
+                <RadzenTemplateForm TItem="InputModel" Data="@Input" Submit="RegisterUserAsync">
+                    <ChildContent Context="formContext">
+                        <h2>Register as a new user</h2>
+                        <hr/>
+                        <RadzenTextBox Name="Username" @bind-Value="Input.Username" Placeholder="Username"
+                                       Style="width:100%" class="rz-mb-2"/>
+                        <RadzenRequiredValidator Component="Username" Text="Username is required."/>
+
+                        <RadzenPassword Name="Password" @bind-Value="Input.Password" Placeholder="Password"
+                                        Style="width:100%" class="rz-mb-2"/>
+                        <RadzenRequiredValidator Component="Password" Text="Password is required."/>
+
+                        <RadzenButton Type="Submit" Text="Register" Style="width:100%"
+                                      ButtonStyle="ButtonStyle.Primary"/>
+                    </ChildContent>
+                </RadzenTemplateForm>
+            </RadzenCard>
+        }
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private InputModel Input { get; set; } = new();
+    private bool _result;
+
+    private async Task RegisterUserAsync()
+    {
+        _result = await AccountManagement.RegisterAsync(Input.Username, Input.Password);
+    }
+
+    private sealed class InputModel
+    {
+        [Required] [EmailAddress] public string Username { get; set; } = string.Empty;
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+    }
+
+}
