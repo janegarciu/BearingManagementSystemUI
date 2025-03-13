@@ -23,12 +23,12 @@ cd BearingManagementUI
 ## Connecting to the API
 The UI communicates with the Bearing Management API. Ensure the API is running before launching the UI.
 
-- **Default API URL:** `https://localhost:5001`
+- **Default API URL:** `http://localhost:5009`
 - If using a different API URL, update the configuration in `appsettings.json` or environment variables. 
 - Under wwroot folder find `appsettings.json` file and modify it to match api url:
    ```sh
    {
-   "ApiUrl": "https://localhost:5001/"
+   "ApiUrl": "http://localhost:5009/"
    }
    ```
    
